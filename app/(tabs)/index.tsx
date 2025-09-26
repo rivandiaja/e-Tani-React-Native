@@ -1,98 +1,109 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, ScrollView } from 'react-native';
+// 1. Impor SafeAreaView dan useSafeAreaInsets
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import WelcomeCard from '../../components/WelcomeCard';
+import SensorGrid from '../../components/SensorGrid';
+import ChartSection from '../../components/ChartSection';
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
-
-export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
-
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
-  );
+// Tipe data untuk histori sensor
+export interface RawPoint {
+  ts: number;
+  temperature: number;
+  humidity: number;
+  soilMoisture: number;
+  waterTank: number;
+  battery: number;
 }
 
+// Tipe data untuk state sensor
+export interface SensorData {
+  rainfall: number;
+  temperature: number;
+  humidity: number;
+  soilMoisture: number;
+  pH: number;
+  battery: number;
+  waterTank: number;
+  windSpeed: number;
+}
+
+const HomeScreen = () => {
+  // 2. Panggil hook untuk mendapatkan nilai safe area
+  const insets = useSafeAreaInsets();
+
+  const [currentTime, setCurrentTime] = useState<Date>(new Date());
+  
+  const [sensorData, setSensorData] = useState<SensorData>({
+    rainfall: 15,
+    temperature: 30,
+    humidity: 65,
+    soilMoisture: 42,
+    pH: 6.8,
+    battery: 76,
+    waterTank: 80,
+    windSpeed: 5,
+  });
+  
+  const [rawHistory, setRawHistory] = useState<RawPoint[]>([]);
+
+  // Logika useEffect tetap sama
+  useEffect(() => {
+    const tick = () => {
+      setCurrentTime(new Date());
+      setSensorData((prev) => {
+        const updated = {
+          ...prev,
+          battery: Math.max(0, Math.min(100, +(prev.battery + (Math.random() * 4 - 2)).toFixed(0))),
+          waterTank: Math.max(0, Math.min(100, +(prev.waterTank + (Math.random() * 4 - 2)).toFixed(0))),
+          humidity: Math.max(20, Math.min(100, +(prev.humidity + (Math.random() * 4 - 2)).toFixed(1))),
+          soilMoisture: Math.max(10, Math.min(100, +(prev.soilMoisture + (Math.random() * 4 - 2)).toFixed(1))),
+          windSpeed: Math.max(0, Math.min(50, +(prev.windSpeed + (Math.random() * 2 - 1)).toFixed(1))),
+          temperature: Math.max(15, Math.min(40, +(prev.temperature + (Math.random() * 2 - 1)).toFixed(1))),
+        };
+
+        setRawHistory((h) => {
+          const point: RawPoint = { ts: Date.now(), ...updated };
+          const next = [...h, point];
+          if (next.length > 500) return next.slice(next.length - 500);
+          return next;
+        });
+
+        return updated;
+      });
+    };
+
+    const id = setInterval(tick, 3000);
+    return () => clearInterval(id);
+  }, []);
+
+  return (
+    // Gunakan `edges` untuk kontrol lebih, atau biarkan kosong untuk default
+    <SafeAreaView style={styles.safeArea} edges={['left', 'right']}> 
+      <ScrollView
+        contentContainerStyle={[
+          styles.container,
+          // 3. Terapkan padding atas dan bawah secara dinamis
+          { paddingTop: insets.top, paddingBottom: insets.bottom }
+        ]}
+      >
+        <WelcomeCard currentTime={currentTime} />
+        <SensorGrid sensorData={sensorData} />
+        <ChartSection history={rawHistory} />
+      </ScrollView>
+    </SafeAreaView>
+  );
+};
+
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  container: {
+    // Padding horizontal saja, karena vertikal diatur oleh insets
+    paddingHorizontal: 12,
   },
 });
+
+export default HomeScreen;
